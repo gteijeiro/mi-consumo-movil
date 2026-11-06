@@ -2,6 +2,8 @@
 build/
 DerivedData/
 .build-local/
+__pycache__/
+*.pyc
 *.xcarchive
 *.xcresult
 *.app/

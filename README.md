@@ -2,35 +2,38 @@
 
 App macOS y widget de escritorio para ver los gigas disponibles y el vencimiento de cada pack de [Mi Personal](https://mipersonal.personal.com.ar). El proyecto de Xcode conserva el nombre interno `PersonalDataWidget`; el nombre visible de la app y el widget es **Mi Consumo Móvil**.
 
-> Proyecto personal no oficial. No está afiliado a Personal. El sitio puede cambiar su login o el formato de consumo y requerir ajustes en el proveedor.
+> Proyecto comunitario no oficial. No está afiliado a Personal. Necesitás tu propia cuenta del servicio. El sitio puede cambiar su login o el formato de consumo y requerir ajustes en el proveedor.
 
 ## Requisitos
 
-- macOS 14 o posterior y Xcode. Este proyecto se compiló con Xcode 27.2 en un Mac Apple Silicon.
+- macOS 14 o posterior, Xcode y Python 3 para el configurador. Este proyecto se compiló con Xcode 27.2 en un Mac Apple Silicon.
 - Una cuenta propia de Mi Personal y conexión a Internet.
-- Un equipo de firma de Apple configurado en Xcode. Para usar App Groups y WidgetKit, ambos targets deben firmarse con el mismo equipo y compartir el mismo App Group.
+- Un equipo de firma de Apple configurado en Xcode y con capacidad para firmar ambos targets con App Groups. Si Xcode no ofrece esa capacidad para tu equipo, no podrás probar el intercambio de datos con el widget mediante esta configuración.
 
 ## Instalar desde el código, paso a paso
 
-1. Cloná el repositorio y abrí el proyecto:
+1. Cloná el repositorio público:
 
    ```sh
    git clone https://github.com/gteijeiro/mi-consumo-movil.git
    cd mi-consumo-movil
-   open PersonalDataWidget.xcodeproj
    ```
 
-   Como el repositorio es privado, GitHub te pedirá acceso. También podés descargar el código desde la página del repositorio si ya iniciaste sesión allí.
+   También podés descargar **Code > Download ZIP** en GitHub y descomprimirlo; no hace falta una cuenta de GitHub para leer el repositorio.
 
-2. En Xcode, elegí el esquema **PersonalDataWidget** y el destino **My Mac**.
+2. Obtené el **Team ID** de tu equipo de Apple en Xcode o en tu cuenta de desarrollador. Elegí un Bundle ID propio, por ejemplo `com.tunombre.MiConsumoMovil`, y configurá esta copia:
 
-3. Revisá **Signing & Capabilities** en los targets **PersonalDataWidget** y **PersonalUsageWidgetExtension**. Ambos deben usar el mismo **Team**. El proyecto trae el equipo `6WV47G2CGZ` y el App Group `6WV47G2CGZ.PersonalDataWidget` para la instalación original. Si compilás con otro equipo, cambiá:
+   ```sh
+   python3 scripts/configure_signing.py \
+     --team-id TU_TEAM_ID \
+     --bundle-id com.tunombre.MiConsumoMovil
+   ```
 
-   - `DEVELOPMENT_TEAM` y, si Xcode lo requiere, los dos `PRODUCT_BUNDLE_IDENTIFIER` en `PersonalDataWidget.xcodeproj`;
-   - el App Group en `Configuration/App.entitlements` y `Configuration/Widget.entitlements`;
-   - `SharedSettings.appGroup` en `Shared/UsageSnapshot.swift`.
+   El script actualiza los dos identificadores de app, el equipo de firma y el App Group en Xcode, en los dos archivos de entitlements y en el código compartido. **No escribas credenciales de Personal en el comando.** Si usás el equipo original del mantenedor, este paso puede omitirse. Si vas a actualizar una copia que ya instalaste con otro identificador, conservá el mismo Team ID y Bundle ID para mantener su sesión local.
 
-   Usá exactamente el mismo App Group en los tres lugares. Xcode puede necesitar que habilites la capacidad **App Groups** para ambos identificadores en tu equipo de desarrollador. En el Mac original se comprobó la compilación con el certificado Apple Development instalado; Xcode no tenía conectada la cuenta para firma automática. En ese caso, conectá tu cuenta en **Xcode > Settings > Accounts** o configurá la firma manual con tu certificado.
+3. Abrí `PersonalDataWidget.xcodeproj` con Xcode. Elegí el esquema **PersonalDataWidget** y el destino **My Mac**. En **Signing & Capabilities**, revisá los targets **PersonalDataWidget** y **PersonalUsageWidgetExtension**: ambos deben usar tu mismo Team, tener **App Groups** habilitado y mostrar el mismo grupo generado por el script. Si Xcode solicita registrar los Bundle IDs o reparar la firma, permití que complete la configuración de tu equipo.
+
+   El grupo de macOS usa el formato `<Team ID>.PersonalDataWidget`. [Apple documenta ese formato](https://developer.apple.com/documentation/xcode/configuring-app-groups). En el Mac original se comprobó la compilación con un certificado Apple Development. Si Xcode no encuentra tu equipo, agregá tu cuenta en **Xcode > Settings > Accounts**.
 
 4. Elegí **Product > Run** (⌘R). La app abrirá una ventana. Iniciá sesión con tu email y contraseña o con tu línea y código SMS. Escribí los datos solamente dentro de la app. Si el acceso con email pide validar el equipo, completá ese paso en la página. No agregues contraseñas, SMS ni cookies al proyecto.
 
@@ -38,7 +41,7 @@ App macOS y widget de escritorio para ver los gigas disponibles y el vencimiento
 
 6. En el escritorio de macOS, hacé clic derecho sobre el fondo y elegí **Editar widgets**. Buscá **Mi Consumo Móvil** y agregá el tamaño mediano para ver varios packs. Si no aparece, cerrá y volvé a abrir la app desde Xcode para que macOS registre la extensión.
 
-7. Para dejar una copia en **Aplicaciones**, cerrá la app con ⌘Q, elegí **Product > Show Build Folder in Finder** en Xcode y copiá `Products/Debug/PersonalDataWidget.app` a `/Applications`. Abrí esa copia una vez. El nombre visible en Finder será **Mi Consumo Móvil**. Si ya existe una instalación, reemplazá el paquete completo; conservar el mismo identificador y equipo de firma permite seguir usando los datos locales de esa instalación.
+7. Para dejar una copia en **Aplicaciones**, cerrá la app con ⌘Q, elegí **Product > Show Build Folder in Finder** en Xcode y copiá `Products/Debug/PersonalDataWidget.app` a `/Applications`. Abrí esa copia una vez. El nombre visible en Finder será **Mi Consumo Móvil**. Si ya existe una instalación, reemplazá el paquete completo; conservar el mismo identificador y equipo de firma permite seguir usando los datos locales de esa instalación. No uses un ZIP de desarrollo firmado por otra persona como instalador general.
 
 8. Comprobá que aparece el icono de barras en la barra de menús. La app consulta al abrirse y programa otra consulta aproximadamente cada hora mientras su proceso siga activo, aunque cierres la ventana. Para volver a abrirla, usá el icono o buscá **Mi Consumo Móvil** en Aplicaciones. La app intenta habilitar el inicio automático con macOS; si muestra un aviso, autorizala en **Ajustes del Sistema > General > Ítems de inicio**. Salir con ⌘Q detiene las consultas hasta que vuelvas a abrirla.
 
@@ -72,7 +75,7 @@ El flujo depende del sitio de Personal. Se verificaron una lectura real, el widg
 
 ## Distribución y Mac App Store
 
-Este repositorio publica **código fuente**, no una app lista para instalar en cualquier Mac. El ZIP local de desarrollo está firmado con **Apple Development**; no es un lanzamiento para terceros. Para distribuir una app fuera de la Store hay que firmarla con **Developer ID** y notarizarla. No pidas a otros usuarios que desactiven Gatekeeper para instalarla.
+Este repositorio público ofrece **código fuente que cada persona puede compilar con su propio equipo de Apple**. Todavía no hay un instalador binario universal: en el equipo del mantenedor solo hay un certificado **Apple Development**, que no sirve para notarizar una distribución para terceros. Para ofrecer una app descargable lista para abrir en otros Macs, el mantenedor necesitaría un certificado **Developer ID**, activar Hardened Runtime, firmar y notarizar una versión de distribución. No desactives Gatekeeper para instalar un ZIP de desarrollo.
 
 Publicarla en la Mac App Store **no es imposible**, pero esta versión no está preparada para enviarse. Antes habría que comprobar el permiso de uso del servicio de Personal, preparar una forma de revisión sin exponer una cuenta real, revisar el consentimiento para el inicio automático, probar el funcionamiento con App Sandbox y completar los requisitos de firma, metadatos y revisión de Apple. Apple puede rechazar una app que dependa de un servicio ajeno sin autorización o que no aporte suficiente funcionalidad propia.
 
@@ -81,3 +84,7 @@ Documentación oficial: [App Review Guidelines](https://developer.apple.com/app-
 ## Seguridad del repositorio
 
 No subas capturas de login, archivos HAR, bases de WebKit, cookies, tokens, códigos SMS, contraseñas, certificados privados ni perfiles de aprovisionamiento. `.gitignore` excluye salidas de compilación y varios formatos sensibles. La firma del proyecto incluye un identificador de equipo, pero ninguna clave privada.
+
+## Licencia
+
+El código se publica con la [licencia MIT](LICENSE). Esta licencia cubre el código de este repositorio; no concede derechos sobre marcas, contenidos ni servicios de Personal.

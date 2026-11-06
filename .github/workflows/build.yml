@@ -1,0 +1,23 @@
+name: Compilar macOS
+
+permissions:
+  contents: read
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Compilar app y widget sin firma
+        run: >-
+          xcodebuild -project PersonalDataWidget.xcodeproj
+          -scheme PersonalDataWidget
+          -configuration Debug
+          -destination 'platform=macOS'
+          CODE_SIGNING_ALLOWED=NO build
