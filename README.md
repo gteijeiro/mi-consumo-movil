@@ -2,6 +2,8 @@
 
 App macOS y widget de escritorio para ver los gigas disponibles y el vencimiento de cada pack de [Mi Personal](https://mipersonal.personal.com.ar). El proyecto de Xcode conserva el nombre interno `PersonalDataWidget`; el nombre visible de la app y el widget es **Mi Consumo Móvil**.
 
+Para contribuir con un agente de código, empezá por [AGENTS.md](AGENTS.md): resume arquitectura, archivos, comandos de verificación y límites del proyecto.
+
 > Proyecto comunitario no oficial. No está afiliado a Personal. Necesitás tu propia cuenta del servicio. El sitio puede cambiar su login o el formato de consumo y requerir ajustes en el proveedor.
 
 ## Requisitos
