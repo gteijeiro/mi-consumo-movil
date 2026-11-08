@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import ServiceManagement
 import WidgetKit
@@ -13,6 +14,10 @@ final class UsageModel: ObservableObject {
     let provider = PersonalUsageProvider()
     private let store = SnapshotStore()
     private var hourlyActivity: NSBackgroundActivityScheduler?
+    private var freshnessTimer: Timer?
+    private var wakeObserver: NSObjectProtocol?
+    private var activeObserver: NSObjectProtocol?
+    private var lastRefreshAttemptAt: Date?
     private var hasStarted = false
     private var sessionGeneration = 0
     private var signedOut: Bool { UserDefaults.standard.bool(forKey: "personalSignedOut") }
@@ -34,15 +39,40 @@ final class UsageModel: ObservableObject {
         activity.tolerance = 300
         activity.schedule { [weak self] completion in
             Task { @MainActor in
-                if let self, !self.signedOut, !self.showLogin {
-                    await self.refresh()
-                }
+                await self?.refreshIfDue()
                 completion(.finished)
             }
         }
         hourlyActivity = activity
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.refreshIfDue() }
+        }
+        activeObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.refreshIfDue() }
+        }
+        let timer = Timer(timeInterval: 300, repeats: true) { [weak self] _ in
+            Task { @MainActor in await self?.refreshIfDue() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        freshnessTimer = timer
         registerLaunchAtLogin()
         if !signedOut { Task { await refresh() } }
+    }
+
+    private func refreshIfDue() async {
+        guard !signedOut, !showLogin, !isRefreshing, !isSigningOut else { return }
+        let now = Date()
+        if let updatedAt = snapshot.updatedAt,
+           now.timeIntervalSince(updatedAt) < 3_600 { return }
+        // A failed request may be retried, but a wake or focus event must not
+        // cause a burst of requests while the connection is unavailable.
+        if let lastRefreshAttemptAt,
+           now.timeIntervalSince(lastRefreshAttemptAt) < 300 { return }
+        await refresh()
     }
 
     private func registerLaunchAtLogin() {
@@ -65,11 +95,22 @@ final class UsageModel: ObservableObject {
     func stop() {
         hourlyActivity?.invalidate()
         hourlyActivity = nil
+        freshnessTimer?.invalidate()
+        freshnessTimer = nil
+        if let wakeObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver)
+            self.wakeObserver = nil
+        }
+        if let activeObserver {
+            NotificationCenter.default.removeObserver(activeObserver)
+            self.activeObserver = nil
+        }
         hasStarted = false
     }
 
     func refresh(promptForLogin: Bool = false) async {
         guard !isRefreshing, !isSigningOut, !signedOut else { return }
+        lastRefreshAttemptAt = Date()
         let generation = sessionGeneration
         isRefreshing = true
         defer { isRefreshing = false }
