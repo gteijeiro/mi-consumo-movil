@@ -45,7 +45,15 @@ Para contribuir con un agente de código, empezá por [AGENTS.md](AGENTS.md): re
 
 7. Para dejar una copia en **Aplicaciones**, cerrá la app con ⌘Q, elegí **Product > Show Build Folder in Finder** en Xcode y copiá `Products/Debug/PersonalDataWidget.app` a `/Applications`. Abrí esa copia una vez. El nombre visible en Finder será **Mi Consumo Móvil**. Si ya existe una instalación, reemplazá el paquete completo; conservar el mismo identificador y equipo de firma permite seguir usando los datos locales de esa instalación. No uses un ZIP de desarrollo firmado por otra persona como instalador general.
 
-8. Comprobá que aparece el icono de barras en la barra de menús. La app consulta al abrirse y comprueba si la última lectura tiene al menos una hora al despertar el Mac, al volver a activar la app y cada cinco minutos mientras su proceso siga activo. También solicita una actividad periódica a macOS; la consulta puede retrasarse si el sistema está suspendido o restringe las tareas en segundo plano. Para volver a abrirla, usá el icono o buscá **Mi Consumo Móvil** en Aplicaciones. La app intenta habilitar el inicio automático con macOS; si muestra un aviso, autorizala en **Ajustes del Sistema > General > Ítems de inicio**. Salir con ⌘Q detiene las consultas hasta que vuelvas a abrirla.
+8. Para mantener las consultas aunque salgas de la app con ⌘Q, instalá la tarea de usuario de macOS desde la carpeta clonada:
+
+   ```sh
+   python3 scripts/background_refresh.py --install
+   ```
+
+   La tarea comprueba cada cinco minutos si el proceso principal está abierto. Si no lo está, lo abre en segundo plano y la app consulta al iniciar. Si está abierto, la app comprueba si la última lectura tiene al menos una hora al despertar el Mac, al volver a activarse y cada cinco minutos. macOS puede aplazar las tareas, por lo que la hora de consulta es aproximada. El widget muestra el último resultado compartido y no accede a la sesión web.
+
+   Para quitar esta tarea, ejecutá `python3 scripts/background_refresh.py --uninstall`. Si no la instalás, la app solo actualiza mientras su proceso esté abierto; cerrar la ventana con el botón rojo lo deja activo en la barra de menús, pero ⌘Q lo detiene. La app también intenta habilitar el inicio automático al entrar a macOS; si muestra un aviso, autorizala en **Ajustes del Sistema > General > Ítems de inicio**.
 
 ### Compilar desde Terminal
 

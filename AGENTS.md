@@ -23,6 +23,7 @@ Este archivo es el punto de entrada para trabajar en **Mi Consumo Móvil**. El [
 | `Widget/PersonalUsageWidget.swift` | Vista y timeline del widget; no contiene secretos. |
 | `Configuration/` | Info.plist y entitlements de los dos targets. |
 | `scripts/configure_signing.py` | Cambia Team ID, Bundle IDs y App Group para un fork. |
+| `scripts/background_refresh.py` | Instala o quita una tarea `launchd` de usuario que reabre la app si fue cerrada. |
 | `.github/workflows/build.yml` | Compilación sin firma en GitHub Actions. |
 
 ## Comandos de verificación
@@ -47,7 +48,7 @@ Ese build comprueba código y widget, pero **no** prueba App Group, Keychain ni 
 - `SharedSettings.appGroup` debe coincidir con `Configuration/App.entitlements` y `Configuration/Widget.entitlements`. Ambos targets deben pertenecer al mismo equipo. Si cambiás identificadores para un fork, usá `scripts/configure_signing.py` y comprobá la firma en Xcode.
 - No guardes contraseñas, códigos SMS, cookies ni tokens en el repositorio, App Group, logs o pruebas. No imprimas respuestas de autenticación. El email y la línea van a preferencias locales; la contraseña opcional y las cookies de sesión van a Keychain; el widget recibe solo cifras y estado.
 - Los nombres de servicio de Keychain en `SessionCookieVault.swift` son heredados de la primera versión. Cambiarlos sin una migración haría perder el acceso guardado de instalaciones actuales.
-- `UsageModel` usa `NSBackgroundActivityScheduler` con intervalo de 3600 segundos y revisa la antigüedad de los datos al despertar el Mac, al activarse la app y con un timer de cinco minutos. Reintenta una lectura vencida sin generar ráfagas de solicitudes; WidgetKit decide cuándo recargar. La app debe seguir ejecutándose en la barra de menús. ⌘Q detiene las consultas. `SMAppService.mainApp` intenta iniciar la app al entrar a macOS y puede requerir aprobación del usuario.
+- `UsageModel` usa `NSBackgroundActivityScheduler` con intervalo de 3600 segundos y revisa la antigüedad de los datos al despertar el Mac, al activarse la app y con un timer de cinco minutos. Reintenta una lectura vencida sin generar ráfagas de solicitudes; WidgetKit decide cuándo recargar. Sin la tarea opcional de `scripts/background_refresh.py`, la app debe seguir ejecutándose en la barra de menús y ⌘Q detiene las consultas. Con esa tarea instalada, `launchd` comprueba cada cinco minutos si la app se cerró y la reabre en segundo plano; no consulta el portal ni maneja credenciales. `SMAppService.mainApp` intenta iniciar la app al entrar a macOS y puede requerir aprobación del usuario.
 - El reingreso automático solo intenta el flujo web con email y contraseña ya guardados. Si Personal exige SMS u otra validación, la persona debe completarla. Una expiración de sesión no demuestra que el servidor permita acceso automático.
 - El parser de `UsageProvider.swift` depende del texto actual del portal. Si cambia, ajustá el proveedor con evidencia de una sesión autorizada y actualizá el README. No inventes endpoints ni reutilices encabezados o cookies de Safari.
 - **Cerrar sesión** y **Cambiar cuenta** deben borrar también el snapshot compartido para que el widget no muestre datos de la cuenta anterior. Al tocar estas rutas, protegé las consultas en curso con `sessionGeneration`.
