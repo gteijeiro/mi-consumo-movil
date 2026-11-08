@@ -32,10 +32,10 @@ final class UsageModel: ObservableObject {
     func start() {
         guard !hasStarted else { return }
         hasStarted = true
-        let activity = NSBackgroundActivityScheduler(identifier: "com.gteijeiro.PersonalDataWidget.hourlyUsage")
+        let activity = NSBackgroundActivityScheduler(identifier: "com.gteijeiro.PersonalDataWidget.periodicUsage")
         activity.repeats = true
-        activity.interval = 3_600
-        activity.tolerance = 300
+        activity.interval = SharedSettings.refreshInterval
+        activity.tolerance = 60
         activity.schedule { [weak self] completion in
             Task { @MainActor in
                 await self?.refreshIfDue()
@@ -53,7 +53,7 @@ final class UsageModel: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in await self?.refreshIfDue() }
         }
-        let timer = Timer(timeInterval: 300, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: SharedSettings.refreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refreshIfDue() }
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -66,11 +66,11 @@ final class UsageModel: ObservableObject {
         guard !signedOut, !showLogin, !isRefreshing, !isSigningOut else { return }
         let now = Date()
         if let updatedAt = snapshot.updatedAt,
-           now.timeIntervalSince(updatedAt) < 3_600 { return }
+           now.timeIntervalSince(updatedAt) < SharedSettings.refreshInterval { return }
         // A failed request may be retried, but a wake or focus event must not
         // cause a burst of requests while the connection is unavailable.
         if let lastRefreshAttemptAt,
-           now.timeIntervalSince(lastRefreshAttemptAt) < 300 { return }
+           now.timeIntervalSince(lastRefreshAttemptAt) < SharedSettings.refreshInterval { return }
         await refresh()
     }
 

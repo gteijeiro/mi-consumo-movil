@@ -17,7 +17,7 @@ struct UsageTimelineProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<UsageEntry>) -> Void) {
         let entry = UsageEntry(date: .now, snapshot: SnapshotStore().load())
-        completion(Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(3_600))))
+        completion(Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(SharedSettings.refreshInterval))))
     }
 }
 

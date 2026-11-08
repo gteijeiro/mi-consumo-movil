@@ -62,6 +62,7 @@ struct UsageSnapshot: Codable {
 enum SharedSettings {
     static let appGroup = "6WV47G2CGZ.PersonalDataWidget"
     static let widgetKind = "PersonalUsageWidget"
+    static let refreshInterval: TimeInterval = 300
     static let loginURL = URL(string: "personaldatawidget://login")!
     static let appURL = URL(string: "personaldatawidget://open")!
 }

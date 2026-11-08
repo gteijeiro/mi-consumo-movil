@@ -51,9 +51,11 @@ Para contribuir con un agente de código, empezá por [AGENTS.md](AGENTS.md): re
    python3 scripts/background_refresh.py --install
    ```
 
-   El agente comprueba cada cinco minutos si la app está ejecutándose. Si no lo está y la última lectura tiene al menos una hora, ejecuta una consulta **sin abrir ventana ni icono en la barra de menús**, guarda el resultado en el App Group y termina. Si la app está abierta, ella misma se ocupa de consultar. macOS puede aplazar las tareas mientras duerme, por lo que la hora de consulta es aproximada. El widget muestra el último resultado compartido y no accede a la sesión web.
+   El agente comprueba cada cinco minutos si la app está ejecutándose. Si no lo está y la última lectura tiene al menos cinco minutos, ejecuta una consulta **sin abrir ventana ni icono en la barra de menús**, guarda el resultado en el App Group y termina. Si la app está abierta, ella misma consulta aproximadamente cada cinco minutos. macOS puede aplazar las tareas mientras duerme, por lo que la hora de consulta es aproximada. El widget muestra el último resultado compartido y no accede a la sesión web.
 
    Para quitar el agente, ejecutá `python3 scripts/background_refresh.py --uninstall`. Sin él, la app solo actualiza mientras su proceso esté abierto; cerrar la ventana con el botón rojo lo deja activo en la barra de menús y ⌘Q lo detiene. Si Personal exige un nuevo código SMS u otra validación, abrí la app para completar el login.
+
+   Para comprobar la última lectura sin abrir la ventana, ejecutá `/Applications/PersonalDataWidget.app/Contents/MacOS/PersonalDataWidget --snapshot-status`. Muestra solo el estado y la hora de la última consulta; los gigas pueden conservar el mismo valor entre consultas.
 
 ### Compilar desde Terminal
 

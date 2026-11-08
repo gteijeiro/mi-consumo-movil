@@ -4,7 +4,10 @@ import SwiftUI
 @MainActor
 enum PersonalDataWidgetMain {
     static func main() {
-        if CommandLine.arguments.contains("--background-refresh") {
+        if CommandLine.arguments.contains("--snapshot-status") {
+            let snapshot = SnapshotStore().load()
+            print("snapshot-state=\(snapshot.state.rawValue) updated-at=\(snapshot.updatedAt?.ISO8601Format() ?? "none")")
+        } else if CommandLine.arguments.contains("--background-refresh") {
             BackgroundRefreshAgent.run()
         } else {
             PersonalDataWidgetApp.main()
