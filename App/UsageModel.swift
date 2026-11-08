@@ -9,7 +9,6 @@ final class UsageModel: ObservableObject {
     @Published var showLogin = false
     @Published private(set) var isRefreshing = false
     @Published private(set) var isSigningOut = false
-    @Published private(set) var launchAtLoginMessage = ""
 
     let provider = PersonalUsageProvider()
     private let store = SnapshotStore()
@@ -59,11 +58,11 @@ final class UsageModel: ObservableObject {
         }
         RunLoop.main.add(timer, forMode: .common)
         freshnessTimer = timer
-        registerLaunchAtLogin()
+        removePreviousMainAppLoginItem()
         if !signedOut { Task { await refresh() } }
     }
 
-    private func refreshIfDue() async {
+    func refreshIfDue() async {
         guard !signedOut, !showLogin, !isRefreshing, !isSigningOut else { return }
         let now = Date()
         if let updatedAt = snapshot.updatedAt,
@@ -75,21 +74,9 @@ final class UsageModel: ObservableObject {
         await refresh()
     }
 
-    private func registerLaunchAtLogin() {
-        guard !signedOut else { return }
+    private func removePreviousMainAppLoginItem() {
         let service = SMAppService.mainApp
-        if service.status == .enabled {
-            launchAtLoginMessage = "Actualización al iniciar macOS activada"
-            return
-        }
-        do {
-            try service.register()
-            launchAtLoginMessage = service.status == .enabled
-                ? "Actualización al iniciar macOS activada"
-                : "Activá Mi Consumo Móvil en Ítems de inicio de macOS"
-        } catch {
-            launchAtLoginMessage = "Activá Mi Consumo Móvil en Ítems de inicio de macOS"
-        }
+        if service.status == .enabled { try? service.unregister() }
     }
 
     func stop() {
@@ -151,7 +138,6 @@ final class UsageModel: ObservableObject {
 
     func openLogin() {
         UserDefaults.standard.set(false, forKey: "personalSignedOut")
-        registerLaunchAtLogin()
         provider.openLogin()
         showLogin = true
     }

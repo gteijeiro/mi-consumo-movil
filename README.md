@@ -45,15 +45,15 @@ Para contribuir con un agente de código, empezá por [AGENTS.md](AGENTS.md): re
 
 7. Para dejar una copia en **Aplicaciones**, cerrá la app con ⌘Q, elegí **Product > Show Build Folder in Finder** en Xcode y copiá `Products/Debug/PersonalDataWidget.app` a `/Applications`. Abrí esa copia una vez. El nombre visible en Finder será **Mi Consumo Móvil**. Si ya existe una instalación, reemplazá el paquete completo; conservar el mismo identificador y equipo de firma permite seguir usando los datos locales de esa instalación. No uses un ZIP de desarrollo firmado por otra persona como instalador general.
 
-8. Para mantener las consultas aunque salgas de la app con ⌘Q, instalá la tarea de usuario de macOS desde la carpeta clonada:
+8. Para consultar sin mantener abierta la app, instalá el agente de usuario de macOS desde la carpeta clonada:
 
    ```sh
    python3 scripts/background_refresh.py --install
    ```
 
-   La tarea comprueba cada cinco minutos si el proceso principal está abierto. Si no lo está, lo abre en segundo plano y la app consulta al iniciar. Si está abierto, la app comprueba si la última lectura tiene al menos una hora al despertar el Mac, al volver a activarse y cada cinco minutos. macOS puede aplazar las tareas, por lo que la hora de consulta es aproximada. El widget muestra el último resultado compartido y no accede a la sesión web.
+   El agente comprueba cada cinco minutos si la app está ejecutándose. Si no lo está y la última lectura tiene al menos una hora, ejecuta una consulta **sin abrir ventana ni icono en la barra de menús**, guarda el resultado en el App Group y termina. Si la app está abierta, ella misma se ocupa de consultar. macOS puede aplazar las tareas mientras duerme, por lo que la hora de consulta es aproximada. El widget muestra el último resultado compartido y no accede a la sesión web.
 
-   Para quitar esta tarea, ejecutá `python3 scripts/background_refresh.py --uninstall`. Si no la instalás, la app solo actualiza mientras su proceso esté abierto; cerrar la ventana con el botón rojo lo deja activo en la barra de menús, pero ⌘Q lo detiene. La app también intenta habilitar el inicio automático al entrar a macOS; si muestra un aviso, autorizala en **Ajustes del Sistema > General > Ítems de inicio**.
+   Para quitar el agente, ejecutá `python3 scripts/background_refresh.py --uninstall`. Sin él, la app solo actualiza mientras su proceso esté abierto; cerrar la ventana con el botón rojo lo deja activo en la barra de menús y ⌘Q lo detiene. Si Personal exige un nuevo código SMS u otra validación, abrí la app para completar el login.
 
 ### Compilar desde Terminal
 
@@ -79,7 +79,7 @@ La app resultante estará en `.build-local/Build/Products/Debug/PersonalDataWidg
 
 ## Cómo funciona
 
-`LoginWebView` abre el sitio en una sesión propia de `WKWebsiteDataStore.default()`, separada de Safari y Chrome. `PersonalUsageProvider` carga **Mis disponibles**, abre el detalle y extrae los saldos y vencimientos del texto visible. No reproduce directamente una API privada ni guarda encabezados de autorización. `UsageModel` programa la consulta con `NSBackgroundActivityScheduler`; `SnapshotStore` comparte solo el resultado mediante el App Group. El widget lee ese resultado y abre la app mediante un enlace cuando necesita login.
+`LoginWebView` abre el sitio en una sesión propia de `WKWebsiteDataStore.default()`, separada de Safari y Chrome. `PersonalUsageProvider` carga **Mis disponibles**, abre el detalle y extrae los saldos y vencimientos del texto visible. No reproduce directamente una API privada ni guarda encabezados de autorización. Con la app abierta, `UsageModel` programa la consulta; con la app cerrada, un agente `launchd` ejecuta el mismo binario en modo sin interfaz y consulta cuando la lectura está vencida. `SnapshotStore` comparte solo el resultado mediante el App Group. El widget lee ese resultado y abre la app mediante un enlace cuando necesita login.
 
 El flujo depende del sitio de Personal. Se verificaron una lectura real, el widget con tres packs, la compilación firmada y la persistencia del acceso al reiniciar la app. La renovación automática después de que el servidor exija una validación nueva sigue dependiendo de ese flujo externo.
 

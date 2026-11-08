@@ -103,10 +103,6 @@ struct ContentView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
-                if !model.launchAtLoginMessage.isEmpty {
-                    Text(model.launchAtLoginMessage)
-                        .font(.caption).foregroundStyle(.secondary)
-                }
                 HStack {
                     Button(model.snapshot.state == .needsLogin ? "Iniciar sesión" : "Abrir Mi Personal") {
                         model.openLogin()

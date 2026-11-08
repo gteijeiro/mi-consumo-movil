@@ -1,12 +1,49 @@
 import SwiftUI
 
-final class PersonalDataWidgetAppDelegate: NSObject, NSApplicationDelegate {
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        false
+@main
+@MainActor
+enum PersonalDataWidgetMain {
+    static func main() {
+        if CommandLine.arguments.contains("--background-refresh") {
+            BackgroundRefreshAgent.run()
+        } else {
+            PersonalDataWidgetApp.main()
+        }
     }
 }
 
-@main
+@MainActor
+private enum BackgroundRefreshAgent {
+    static let delegate = BackgroundRefreshDelegate()
+
+    static func run() {
+        let application = NSApplication.shared
+        application.setActivationPolicy(.prohibited)
+        application.delegate = delegate
+        application.run()
+    }
+}
+
+private final class BackgroundRefreshDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Task { @MainActor in
+            let model = UsageModel()
+            if CommandLine.arguments.contains("--force-refresh") {
+                await model.refresh()
+            } else {
+                await model.refreshIfDue()
+            }
+            print("background-refresh: \(model.snapshot.state.rawValue)")
+            NSApp.terminate(nil)
+        }
+    }
+
+}
+
+final class PersonalDataWidgetAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+}
+
 struct PersonalDataWidgetApp: App {
     @NSApplicationDelegateAdaptor(PersonalDataWidgetAppDelegate.self) private var appDelegate
     @StateObject private var model = UsageModel()
