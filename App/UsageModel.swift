@@ -19,6 +19,7 @@ final class UsageModel: ObservableObject {
     private var lastRefreshAttemptAt: Date?
     private var hasStarted = false
     private var sessionGeneration = 0
+    private let lastLoginAttemptKey = "personalLastAutomaticLoginAttempt"
     private var signedOut: Bool { UserDefaults.standard.bool(forKey: "personalSignedOut") }
 
     func refreshFromButton() async {
@@ -63,10 +64,22 @@ final class UsageModel: ObservableObject {
     }
 
     func refreshIfDue() async {
-        guard !signedOut, !showLogin, !isRefreshing, !isSigningOut else { return }
+        guard !signedOut, !isRefreshing, !isSigningOut else { return }
+        if showLogin {
+            if provider.isOnPortal() {
+                showLogin = false
+                await refresh()
+            } else {
+                _ = provider.retryLoginAfterLoadFailure()
+            }
+            return
+        }
         let now = Date()
+        if snapshot.state == .needsLogin,
+           let lastLoginAttempt = UserDefaults.standard.object(forKey: lastLoginAttemptKey) as? Date,
+           now.timeIntervalSince(lastLoginAttempt) < 1_800 { return }
         if let updatedAt = snapshot.updatedAt,
-           now.timeIntervalSince(updatedAt) < SharedSettings.refreshInterval { return }
+           now.timeIntervalSince(updatedAt) < SharedSettings.refreshDueAfter { return }
         // A failed request may be retried, but a wake or focus event must not
         // cause a burst of requests while the connection is unavailable.
         if let lastRefreshAttemptAt,
@@ -112,10 +125,12 @@ final class UsageModel: ObservableObject {
                 }
                 updated = try await provider.fetchUsage()
             }
-            guard generation == sessionGeneration else { return }
+            guard generation == sessionGeneration, !signedOut else { return }
             snapshot = updated
+            UserDefaults.standard.removeObject(forKey: lastLoginAttemptKey)
         } catch UsageProviderError.needsLogin {
             guard generation == sessionGeneration else { return }
+            UserDefaults.standard.set(Date(), forKey: lastLoginAttemptKey)
             snapshot.state = .needsLogin
             snapshot.message = "Sesión vencida. Se muestra la última lectura."
             if promptForLogin {
@@ -125,12 +140,18 @@ final class UsageModel: ObservableObject {
             guard generation == sessionGeneration else { return }
             snapshot.state = .unavailable
             snapshot.message = "Consulta real aún no configurada"
+        } catch UsageProviderError.networkUnavailable {
+            guard generation == sessionGeneration else { return }
+            snapshot.state = .unavailable
+            snapshot.message = "Sin conexión. Reintentará la consulta."
         } catch {
             guard generation == sessionGeneration else { return }
             snapshot.state = .unavailable
             snapshot.message = "No se pudo actualizar"
         }
 
+        UserDefaults.standard.synchronize()
+        guard !signedOut else { return }
         if store.save(snapshot) {
             WidgetCenter.shared.reloadTimelines(ofKind: SharedSettings.widgetKind)
         }
@@ -152,6 +173,7 @@ final class UsageModel: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "personalPhoneNumber")
         UserDefaults.standard.removeObject(forKey: "personalLoginEmail")
         UserDefaults.standard.removeObject(forKey: "personalLoginMethod")
+        UserDefaults.standard.removeObject(forKey: lastLoginAttemptKey)
         snapshot = .signedOut
         if store.save(snapshot) {
             WidgetCenter.shared.reloadTimelines(ofKind: SharedSettings.widgetKind)

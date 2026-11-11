@@ -63,6 +63,9 @@ enum SharedSettings {
     static let appGroup = "6WV47G2CGZ.PersonalDataWidget"
     static let widgetKind = "PersonalUsageWidget"
     static let refreshInterval: TimeInterval = 300
+    // The launch agent fires on five-minute clock boundaries. A completed web
+    // request is timestamped a few seconds after its boundary.
+    static let refreshDueAfter: TimeInterval = 240
     static let loginURL = URL(string: "personaldatawidget://login")!
     static let appURL = URL(string: "personaldatawidget://open")!
 }

@@ -4,6 +4,7 @@ import WebKit
 enum UsageProviderError: Error {
     case needsLogin
     case notConfigured
+    case networkUnavailable
     case unavailable
 }
 
@@ -31,18 +32,39 @@ struct MockUsageProvider: UsageProvider {
 // Reads the visible consumption from this app's own WebKit session. Session
 // cookies and an optional email password stay in the app's local Keychain.
 @MainActor
-final class PersonalUsageProvider: UsageProvider {
+final class PersonalUsageProvider: NSObject, UsageProvider, WKNavigationDelegate {
     let webView: WKWebView
     private let portalURL = URL(string: "https://mipersonal.personal.com.ar")!
     private let detailsURL = URL(string: "https://mipersonal.personal.com.ar/mis-disponibles")!
     private let cookieVault = SessionCookieVault()
     private var cookiesRestored = false
     private var sessionGeneration = 0
+    private var recoverableLoadFailure = false
 
-    init() {
+    override init() {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
         webView = WKWebView(frame: .zero, configuration: configuration)
+        super.init()
+        webView.navigationDelegate = self
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        recoverableLoadFailure = false
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        let failure = error as NSError
+        if failure.domain == NSURLErrorDomain && failure.code != NSURLErrorCancelled {
+            recoverableLoadFailure = true
+        }
+    }
+
+    func retryLoginAfterLoadFailure() -> Bool {
+        guard recoverableLoadFailure else { return false }
+        recoverableLoadFailure = false
+        openLogin()
+        return true
     }
 
     // The phone number stays in this app's preferences. The code only exists in memory
@@ -155,7 +177,8 @@ final class PersonalUsageProvider: UsageProvider {
           const generation = window.__pdwEmailGeneration;
           const email = \#(emailLiteral);
           let password = \#(passwordLiteral);
-          let emailSubmitted = false;
+          let emailAttempts = 0;
+          let lastEmailAttempt = 0;
           let passwordSubmitted = false;
           const visible = e => e.getClientRects().length > 0;
           const buttons = () => Array.from(document.querySelectorAll('button')).filter(visible);
@@ -181,10 +204,12 @@ final class PersonalUsageProvider: UsageProvider {
               return;
             }
             const text = document.body?.innerText || '';
-            if (!emailSubmitted && text.includes('Ingresa tu usuario')) {
+            if (text.includes('Ingresa tu usuario') && emailAttempts < 3 &&
+                Date.now() - lastEmailAttempt >= 3000) {
               const fields = Array.from(document.querySelectorAll('input')).filter(e => visible(e) && e.type !== 'hidden');
               if (fields.length === 1) {
-                emailSubmitted = true;
+                emailAttempts += 1;
+                lastEmailAttempt = Date.now();
                 setInput(fields[0], email);
                 submit(() => {});
               }
@@ -324,6 +349,7 @@ final class PersonalUsageProvider: UsageProvider {
                 return snapshot
             }
         }
+        if recoverableLoadFailure { throw UsageProviderError.networkUnavailable }
         throw UsageProviderError.unavailable
     }
 

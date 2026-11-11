@@ -226,7 +226,8 @@ struct ContentView: View {
     @MainActor
     private func finishEmailLoginWhenReady() async {
         var sawLoginPage = false
-        for _ in 0..<480 {
+        var secondsWaiting = 0
+        while true {
             guard model.showLogin, !Task.isCancelled, loginMethod == "email" else { return }
             if model.provider.isOnLoginPage() { sawLoginPage = true }
             if sawLoginPage && model.provider.isOnPortal() {
@@ -235,7 +236,11 @@ struct ContentView: View {
                 await model.refresh()
                 return
             }
-            try? await Task.sleep(for: .milliseconds(250))
+            if secondsWaiting == 60 {
+                emailStatus = "Si no avanza, completá el acceso en la página de Personal."
+            }
+            secondsWaiting += 1
+            try? await Task.sleep(for: .seconds(1))
         }
     }
 

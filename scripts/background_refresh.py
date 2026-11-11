@@ -4,7 +4,6 @@
 import argparse
 import os
 import plistlib
-import re
 import shlex
 import subprocess
 from pathlib import Path
@@ -52,7 +51,6 @@ def install(app: Path) -> None:
     script_path.parent.mkdir(parents=True, exist_ok=True)
     script = (
         "#!/bin/sh\n"
-        f"if /usr/bin/pgrep -f {shlex.quote('^' + re.escape(str(binary)) + '$')} >/dev/null; then exit 0; fi\n"
         f"exec {shlex.quote(str(binary))} --background-refresh\n"
     )
     script_path.write_text(script, encoding="utf-8")
