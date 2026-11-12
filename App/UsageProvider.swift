@@ -268,6 +268,12 @@ final class PersonalUsageProvider: NSObject, UsageProvider, WKNavigationDelegate
         webView.url?.host == "login.personal.com.ar"
     }
 
+    func requiresIdentityValidation() async -> Bool {
+        guard isOnLoginPage() else { return false }
+        let script = "(() => { const text = document.body?.innerText || ''; return text.includes('necesitamos validar tu identidad') || text.includes('Ingresá el código que recibiste'); })()"
+        return (try? await webView.evaluateJavaScript(script) as? Bool) == true
+    }
+
     func clearSession() async {
         sessionGeneration += 1
         webView.stopLoading()
@@ -277,10 +283,15 @@ final class PersonalUsageProvider: NSObject, UsageProvider, WKNavigationDelegate
         webView.loadHTMLString("", baseURL: nil)
         let dataStore = webView.configuration.websiteDataStore
         await dataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+        URLCache.shared.removeAllCachedResponses()
     }
 
     func openLogin() {
-        webView.load(URLRequest(url: portalURL))
+        loadFreshPage(portalURL)
+    }
+
+    private func loadFreshPage(_ url: URL) {
+        webView.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData))
     }
 
     // The app retries the normal website login with the locally saved account.
@@ -291,12 +302,16 @@ final class PersonalUsageProvider: NSObject, UsageProvider, WKNavigationDelegate
         let generation = sessionGeneration
         var sawLoginPage = isOnLoginPage()
         configureEmailLogin(email: email, password: password)
-        webView.load(URLRequest(url: portalURL))
+        loadFreshPage(portalURL)
         for _ in 0..<75 {
             try? await Task.sleep(for: .seconds(1))
             guard generation == sessionGeneration else { return false }
             if isOnLoginPage() {
                 sawLoginPage = true
+                if await requiresIdentityValidation() {
+                    disableLoginAssistance()
+                    return false
+                }
                 _ = try? await webView.evaluateJavaScript("window.__pdwEmailAdvance?.(); true")
             }
             if sawLoginPage && isOnPortal() {
@@ -316,7 +331,7 @@ final class PersonalUsageProvider: NSObject, UsageProvider, WKNavigationDelegate
                 await webView.configuration.websiteDataStore.httpCookieStore.setCookie(cookie)
             }
         }
-        webView.load(URLRequest(url: detailsURL))
+        loadFreshPage(detailsURL)
         var requestedDetails = false
         for _ in 0..<35 {
             try await Task.sleep(for: .seconds(1))

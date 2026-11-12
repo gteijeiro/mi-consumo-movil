@@ -11,6 +11,7 @@ struct ContentView: View {
     @State private var loginPassword = ""
     @State private var emailStatus = ""
     @State private var hasStoredPassword = false
+    @State private var isResettingWebLogin = false
     @State private var editingLine = false
     @FocusState private var smsCodeFocused: Bool
     private let blue = Color(red: 0.04, green: 0.34, blue: 0.68)
@@ -133,6 +134,9 @@ struct ContentView: View {
                         Task { await model.refresh(promptForLogin: true) }
                     }
                     .disabled(model.isRefreshing)
+                    Button("Reiniciar acceso") { resetWebLogin() }
+                        .disabled(model.isRefreshing || isResettingWebLogin)
+                        .help("Borra la sesión web de esta app y vuelve a ingresar. Personal puede pedir un código nuevo.")
                     Button("Cerrar") { model.showLogin = false }
                 }
                 .padding()
@@ -236,7 +240,9 @@ struct ContentView: View {
                 await model.refresh()
                 return
             }
-            if secondsWaiting == 60 {
+            if await model.provider.requiresIdentityValidation() {
+                emailStatus = "Personal requiere validar tu identidad. Completá el código en la página."
+            } else if secondsWaiting == 60 {
                 emailStatus = "Si no avanza, completá el acceso en la página de Personal."
             }
             secondsWaiting += 1
@@ -311,6 +317,22 @@ struct ContentView: View {
         UserDefaults.standard.set(address, forKey: "personalLoginEmail")
         model.provider.configureEmailLogin(email: address, password: password)
         emailStatus = "Ingresando con email…"
+    }
+
+    private func resetWebLogin() {
+        guard !isResettingWebLogin else { return }
+        isResettingWebLogin = true
+        Task {
+            defer { isResettingWebLogin = false }
+            await model.provider.clearSession()
+            if loginMethod == "email", let password = passwordVault.load(), !loginEmail.isEmpty {
+                model.provider.configureEmailLogin(email: loginEmail, password: password)
+                emailStatus = "Reiniciando el acceso web…"
+            } else if loginMethod == "phone" {
+                model.provider.configureLogin(phoneNumber: personalPhoneNumber)
+            }
+            model.provider.openLogin()
+        }
     }
 
     private func acceptCode(_ text: String) {

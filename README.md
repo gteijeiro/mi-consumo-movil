@@ -59,6 +59,8 @@ Para contribuir con un agente de código, empezá por [AGENTS.md](AGENTS.md): re
 
    Si la página de login queda en blanco tras perder la conexión, la app intenta recargarla al recuperar actividad. También podés cerrar el formulario y volver a pulsar **Iniciar sesión**. Si Personal exige SMS o validación del equipo, completá ese paso en la app: el agente no puede resolverlo por sí solo.
 
+   Si el formulario no avanza en **Continuar**, usá **Reiniciar acceso**. Borra los datos web de la app y vuelve a cargar el login, conservando la contraseña guardada en el Llavero. Personal puede pedir validar la identidad mediante un código por email o SMS; ingresalo directamente en la página. **Cerrar sesión** elimina también el acceso guardado.
+
 ### Compilar desde Terminal
 
 Después de configurar la firma en Xcode, también podés compilar con:
