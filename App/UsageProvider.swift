@@ -37,6 +37,7 @@ final class PersonalUsageProvider: NSObject, UsageProvider, WKNavigationDelegate
     private let portalURL = URL(string: "https://mipersonal.personal.com.ar")!
     private let detailsURL = URL(string: "https://mipersonal.personal.com.ar/mis-disponibles")!
     private let cookieVault = SessionCookieVault()
+    private let portalSessionVault = PortalSessionVault()
     private var cookiesRestored = false
     private var sessionGeneration = 0
     private var recoverableLoadFailure = false
@@ -279,6 +280,7 @@ final class PersonalUsageProvider: NSObject, UsageProvider, WKNavigationDelegate
         webView.stopLoading()
         disableLoginAssistance()
         cookieVault.clear()
+        portalSessionVault.clear()
         cookiesRestored = true
         webView.loadHTMLString("", baseURL: nil)
         let dataStore = webView.configuration.websiteDataStore
@@ -327,6 +329,14 @@ final class PersonalUsageProvider: NSObject, UsageProvider, WKNavigationDelegate
         let generation = sessionGeneration
         if !cookiesRestored {
             cookiesRestored = true
+            if let json = portalSessionVault.load(),
+               let data = json.data(using: .utf8),
+               (try? JSONDecoder().decode([String: String].self, from: data)) != nil {
+                let script = "if (location.origin === 'https://mipersonal.personal.com.ar') { const saved = " + json + "; for (const [key, value] of Object.entries(saved)) { if (sessionStorage.getItem(key) === null) sessionStorage.setItem(key, value); } }"
+                webView.configuration.userContentController.addUserScript(
+                    WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+                )
+            }
             for cookie in cookieVault.load() {
                 await webView.configuration.websiteDataStore.httpCookieStore.setCookie(cookie)
             }
@@ -339,6 +349,7 @@ final class PersonalUsageProvider: NSObject, UsageProvider, WKNavigationDelegate
             let host = webView.url?.host ?? ""
             if host == "idpsesion.personal.com.ar" || host == "login.personal.com.ar" {
                 cookieVault.clear()
+                portalSessionVault.clear()
                 throw UsageProviderError.needsLogin
             }
             guard !webView.isLoading, host == portalURL.host else { continue }
@@ -370,7 +381,13 @@ final class PersonalUsageProvider: NSObject, UsageProvider, WKNavigationDelegate
 
     private func saveSessionCookies(generation: Int) async {
         let cookies = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
-        if generation == sessionGeneration { cookieVault.save(cookies) }
+        guard generation == sessionGeneration else { return }
+        cookieVault.save(cookies)
+        let script = "location.origin === 'https://mipersonal.personal.com.ar' ? JSON.stringify(Object.fromEntries(Object.entries(sessionStorage))) : null"
+        if let json = try? await webView.evaluateJavaScript(script) as? String,
+           generation == sessionGeneration {
+            portalSessionVault.save(json)
+        }
     }
 
     private static func parseDetailedUsage(_ text: String) -> UsageSnapshot? {

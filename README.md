@@ -78,9 +78,9 @@ La app resultante estará en `.build-local/Build/Products/Debug/PersonalDataWidg
 ## Uso y privacidad
 
 - **Actualizar** consulta el portal de inmediato. El widget muestra la última lectura guardada y se recarga cuando la app publica una nueva. macOS y WidgetKit pueden retrasar una actualización; no es una garantía de minuto exacto.
-- **Cambiar cuenta** y **Cerrar sesión** eliminan la sesión de WebKit, la copia de cookies y la contraseña guardadas en el Llavero, el email y la línea locales, y los datos de la cuenta anterior que ve el widget.
+- **Cambiar cuenta** y **Cerrar sesión** eliminan la sesión de WebKit, las cookies, el almacenamiento de la pestaña y la contraseña guardados en el Llavero, el email y la línea locales, y los datos de la cuenta anterior que ve el widget.
 - La app no lee Mensajes. En el acceso por SMS podés escribir el código, aceptar la sugerencia de macOS si funciona o copiar el SMS completo y pulsar **Pegar SMS o código**.
-- El email y la línea se guardan como preferencias locales. La contraseña opcional y las cookies de sesión seguras se guardan solo en el Llavero del Mac. El App Group contiene exclusivamente el resumen de consumo y su estado; el widget no recibe credenciales.
+- El email y la línea se guardan como preferencias locales. La contraseña opcional, las cookies de sesión seguras y `sessionStorage` del origen `https://mipersonal.personal.com.ar` se guardan en el Llavero del Mac. La copia de la pestaña permite continuar la consulta en otro proceso después de cerrar la app; no extiende la validez que impone Personal. Se restaura únicamente en ese mismo origen. El App Group contiene exclusivamente el resumen de consumo y su estado; el widget no recibe credenciales.
 - El sitio observado usa un token con vencimiento de alrededor de una hora, pero eso no establece la duración total del login. La app intenta recuperar la sesión mediante el flujo web con el email guardado. Si Personal exige una verificación adicional, hay que hacerla en la ventana.
 
 ## Cómo funciona

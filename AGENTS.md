@@ -18,7 +18,7 @@ Este archivo es el punto de entrada para trabajar en **Mi Consumo Móvil**. El [
 | `App/LoginWebView.swift` | Adaptador `NSViewRepresentable` del `WKWebView`. |
 | `App/UsageModel.swift` | Estado, consulta, reingreso, cierre de sesión, guardado y actualización programada. |
 | `App/UsageProvider.swift` | Proveedor real, ayuda al login y parser del texto de Personal; incluye un proveedor mock. |
-| `App/SessionCookieVault.swift` | Cookies de sesión y contraseña opcional en Keychain local. |
+| `App/SessionCookieVault.swift` | Cookies, almacenamiento de pestaña del portal y contraseña opcional en Keychain local. |
 | `Shared/UsageSnapshot.swift` | Modelo compartido, App Group, enlaces y `SnapshotStore`. |
 | `Widget/PersonalUsageWidget.swift` | Vista y timeline del widget; no contiene secretos. |
 | `Configuration/` | Info.plist y entitlements de los dos targets. |
@@ -48,7 +48,7 @@ La app instalada admite `--snapshot-status`: imprime únicamente el estado de se
 ## Invariantes y límites
 
 - `SharedSettings.appGroup` debe coincidir con `Configuration/App.entitlements` y `Configuration/Widget.entitlements`. Ambos targets deben pertenecer al mismo equipo. Si cambiás identificadores para un fork, usá `scripts/configure_signing.py` y comprobá la firma en Xcode.
-- No guardes contraseñas, códigos SMS, cookies ni tokens en el repositorio, App Group, logs o pruebas. No imprimas respuestas de autenticación. El email y la línea van a preferencias locales; la contraseña opcional y las cookies de sesión van a Keychain; el widget recibe solo cifras y estado.
+- No guardes contraseñas, códigos SMS, cookies ni tokens en el repositorio, App Group, logs o pruebas. No imprimas respuestas de autenticación. El email y la línea van a preferencias locales; la contraseña opcional, las cookies de sesión y `sessionStorage` del portal van a Keychain; el widget recibe solo cifras y estado. La restauración de la pestaña se inyecta antes del código del portal, solo en su origen HTTPS, y se borra al cerrar sesión o reiniciar el acceso.
 - Los nombres de servicio de Keychain en `SessionCookieVault.swift` son heredados de la primera versión. Cambiarlos sin una migración haría perder el acceso guardado de instalaciones actuales.
 - `SharedSettings.refreshInterval` establece 300 segundos para la consulta y la recarga solicitada a WidgetKit; `refreshDueAfter` usa un margen para el tiempo que tarda la web en responder. `UsageModel` usa `NSBackgroundActivityScheduler` con ese intervalo y revisa la antigüedad de los datos al despertar el Mac, al activarse la app y con un timer de cinco minutos. WidgetKit decide cuándo recargar. El agente de `scripts/background_refresh.py` ejecuta el mismo binario con `--background-refresh` cada cinco minutos, incluso si la interfaz está abierta; el proceso no crea ventana ni icono de barra y termina tras consultar o comprobar que el resultado sigue vigente. Los reintentos de login fallidos se espacian 30 minutos. La app ya no registra `SMAppService.mainApp` como inicio automático de la interfaz.
 - El reingreso automático solo intenta el flujo web con email y contraseña ya guardados. Si Personal exige SMS u otra validación, la persona debe completarla. Una expiración de sesión no demuestra que el servidor permita acceso automático.
